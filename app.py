@@ -271,8 +271,8 @@ def handle_message(event):
             user_id = event.source.user_id
             conn = sqlite3.connect("records.db")
             c = conn.cursor()
-            c.execute("INSERT INTO records (date, category, note, amount, user_id) VALUES (?, ?, ?, ?, ?)",
-                      (date, category, note, amount, user_id))
+            c.execute("INSERT INTO records (date, category, note, amount) VALUES (?, ?, ?, ?)",
+                      (date, category, note, amount))
             conn.commit()
             conn.close()
             reply = f"✅ 已記錄：{note}｜{amount}元｜分類：{category}"
