@@ -224,8 +224,9 @@ def handle_message(event):
             plt.savefig(buf, format='png')
             buf.seek(0)
             image_base64 = base64.b64encode(buf.read()).decode()
-            image_url = "https://linebot-ujit.onrender.com/static/chart.png"
+            image_url = "https://linebot-uj1t.onrender.com/static/chart.png"
             buf.close()
+            
             line_bot_api.reply_message(
                 event.reply_token,
                 ImageSendMessage(
