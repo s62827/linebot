@@ -9,6 +9,8 @@ import re
 import matplotlib.pyplot as plt
 import io
 import os
+import base64
+
 
 app = Flask(__name__)
 
@@ -222,7 +224,9 @@ def handle_message(event):
             plt.title("本月支出分類比例")
             buf = io.BytesIO()
             plt.savefig(buf, format='png')
+            with open("static/chart.png", "wb") as f:
             buf.seek(0)
+            f.write(buf.read())
             image_base64 = base64.b64encode(buf.read()).decode()
             image_url = "https://linebot-uj1t.onrender.com/static/chart.png"
             buf.close()
