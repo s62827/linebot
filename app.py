@@ -299,3 +299,42 @@ if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
+import speech_recognition as sr
+from pydub import AudioSegment
+import os
+
+def handle_voice(update: Update, context: CallbackContext):
+    file = update.message.voice.get_file()
+    file_path = "voice.ogg"
+    wav_path = "voice.wav"
+
+    # 下載語音檔
+    file.download(file_path)
+
+    # 轉檔 ogg → wav
+    audio = AudioSegment.from_ogg(file_path)
+    audio.export(wav_path, format="wav")
+
+    # 使用 SpeechRecognition 辨識
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(wav_path) as source:
+        audio_data = recognizer.record(source)
+
+    try:
+        text = recognizer.recognize_google(audio_data, language="zh-TW")
+        update.message.reply_text(f"🗣️ 你說的是：「{text}」")
+
+        # 把語音轉文字後，交給原本的 handle_message 處理
+        message = type("Message", (), {"text": text, "chat": update.message.chat, "reply_text": update.message.reply_text})
+        update_voice = type("Update", (), {"message": message})
+        handle_message(update_voice, context)
+
+    except sr.UnknownValueError:
+        update.message.reply_text("⚠️ 無法辨識語音，請再試一次。")
+    except Exception as e:
+        update.message.reply_text(f"⚠️ 發生錯誤：{e}")
+
+    # 清理暫存檔案
+    os.remove(file_path)
+    os.remove(wav_path)
