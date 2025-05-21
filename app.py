@@ -226,7 +226,9 @@ def handle_message(event):
             buf = io.BytesIO()
             plt.savefig(buf, format='png')
             buf.seek(0)  # ✅ 回到起始位置
-        
+          
+            if not os.path.exists("static"):
+                os.makedirs("static")
             # ✅ 正確縮排並寫入圖片
             with open("static/chart.png", "wb") as f:
                 f.write(buf.read())
