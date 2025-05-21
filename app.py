@@ -222,15 +222,18 @@ def handle_message(event):
             plt.figure(figsize=(6, 6))
             plt.pie(amounts, labels=labels, autopct='%1.1f%%')
             plt.title("本月支出分類比例")
+        
             buf = io.BytesIO()
             plt.savefig(buf, format='png')
+            buf.seek(0)  # ✅ 回到起始位置
+        
+            # ✅ 正確縮排並寫入圖片
             with open("static/chart.png", "wb") as f:
-            buf.seek(0)
-            f.write(buf.read())
-            image_base64 = base64.b64encode(buf.read()).decode()
+                f.write(buf.read())
+        
             image_url = "https://linebot-uj1t.onrender.com/static/chart.png"
             buf.close()
-            
+        
             line_bot_api.reply_message(
                 event.reply_token,
                 ImageSendMessage(
@@ -239,6 +242,7 @@ def handle_message(event):
                 )
             )
             return
+
 
     elif detected_func == "設定預算":
         try:
