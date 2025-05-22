@@ -304,7 +304,7 @@ def handle_voice(update: Update, context: CallbackContext):
 
 @app.route("/reminder", methods=["GET", "POST"])
 def reminder():
-    user_id = "你的LINE用戶ID"  # 換成你自己的
+    user_id = "a22556"  # 換成你自己的
     line_bot_api.push_message(
         user_id,
         TextSendMessage(text="📣 今天記帳了嗎？記得花費要紀錄喔！")
