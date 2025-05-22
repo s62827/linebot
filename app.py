@@ -3,7 +3,8 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 
-import sqlite3
+from supabase import create_client, Client
+
 from datetime import datetime
 import re
 import matplotlib.pyplot as plt
@@ -13,7 +14,9 @@ import base64
 import matplotlib
 matplotlib.rcParams['font.family'] = 'Noto Sans CJK TC'
 
-
+SUPABASE_URL = "https://kounvedczvpdiajozfkq.supabase.co"  # ✅ 你的專案 URL
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvdW52ZWRjenZwZGlham96ZmtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4MDQ1NzMsImV4cCI6MjA2MzM4MDU3M30.yk7NkHy1xc5JNKLIHMLCheLKBf_-AwAtQpN4MZyyUDk"                               # ✅ 請填入你自己的 key
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = Flask(__name__)
 
@@ -96,27 +99,6 @@ def extract_note_and_amount(text):
         return note, amount
     return None, None
 
-def init_db():
-    conn = sqlite3.connect("records.db")
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT,
-            category TEXT,
-            note TEXT,
-            amount INTEGER
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS budget (
-            id INTEGER PRIMARY KEY,
-            amount INTEGER
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
 @app.route("/webhook", methods=["POST"])
 def webhook():
     signature = request.headers["X-Line-Signature"]
@@ -132,122 +114,102 @@ def webhook():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     text = event.message.text.strip()
+    user_id = event.source.user_id
     detected_func = detect_function(text)
 
     if detected_func == "查詢":
-        conn = sqlite3.connect("records.db")
-        c = conn.cursor()
-        c.execute("SELECT id, date, category, note, amount FROM records ORDER BY id DESC LIMIT 5")
-        rows = c.fetchall()
-        conn.close()
-
+        res = supabase.table("records").select("id, date, category, note, amount").eq("user_id", user_id).order("id", desc=True).limit(5).execute()
+        rows = res.data
         if not rows:
             reply = "📭 沒有任何記錄喔！"
         else:
             reply = "📋 最近 5 筆記錄：\n"
             for row in rows:
-                reply += f"ID:{row[0]}｜{row[1]}｜{row[3]}｜{row[4]}元｜{row[2]}\n"
+                reply += f"ID:{row['id']}｜{row['date']}｜{row['note']}｜{row['amount']}元｜{row['category']}\n"
 
     elif detected_func == "刪除" and text.startswith("刪除"):
         try:
             target_id = int(text.split()[1])
-            conn = sqlite3.connect("records.db")
-            c = conn.cursor()
-            c.execute("SELECT * FROM records WHERE id=?", (target_id,))
-            record = c.fetchone()
-            if record:
-                c.execute("DELETE FROM records WHERE id=?", (target_id,))
-                conn.commit()
-                reply = f"🗑️ 已刪除：ID:{record[0]}｜{record[1]}｜{record[3]}｜{record[4]}元｜{record[2]}"
+            res = supabase.table("records").select("*").eq("id", target_id).eq("user_id", user_id).execute()
+            if res.data:
+                supabase.table("records").delete().eq("id", target_id).execute()
+                row = res.data[0]
+                reply = f"🗑️ 已刪除：ID:{row['id']}｜{row['date']}｜{row['note']}｜{row['amount']}元｜{row['category']}"
             else:
                 reply = f"❌ 找不到 ID 為 {target_id} 的紀錄喔～"
-            conn.close()
-        except (IndexError, ValueError):
+        except:
             reply = "⚠️ 指令錯誤，請輸入：刪除 [ID]，例如：刪除 3"
 
     elif text.startswith("查詢 "):
         category = text.split()[1]
-        conn = sqlite3.connect("records.db")
-        c = conn.cursor()
-        c.execute("SELECT id, date, category, note, amount FROM records WHERE category=? ORDER BY id DESC LIMIT 5", (category,))
-        rows = c.fetchall()
-        conn.close()
+        res = supabase.table("records").select("id, date, category, note, amount").eq("category", category).eq("user_id", user_id).order("id", desc=True).limit(5).execute()
+        rows = res.data
         if not rows:
             reply = f"📭 沒有找到分類【{category}】的紀錄喔！"
         else:
             reply = f"📋 最近的【{category}】紀錄：\n"
             for row in rows:
-                reply += f"ID:{row[0]}｜{row[1]}｜{row[3]}｜{row[4]}元｜{row[2]}\n"
+                reply += f"ID:{row['id']}｜{row['date']}｜{row['note']}｜{row['amount']}元｜{row['category']}\n"
 
     elif detected_func == "統計":
-        conn = sqlite3.connect("records.db")
-        c = conn.cursor()
-        c.execute("SELECT category, SUM(amount) FROM records GROUP BY category")
-        rows = c.fetchall()
-        conn.close()
+        res = supabase.table("records").select("category, amount").eq("user_id", user_id).execute()
+        rows = res.data
         if not rows:
             reply = "📭 沒有任何記錄可以統計喔～"
         else:
-            reply = "📊 各分類總花費：\n"
+            summary = {}
             for row in rows:
-                reply += f"{row[0]}：{row[1]} 元\n"
+                summary[row['category']] = summary.get(row['category'], 0) + row['amount']
+            reply = "📊 各分類總花費：\n"
+            for cat, total in summary.items():
+                reply += f"{cat}：{total} 元\n"
 
     elif detected_func == "查詢日期" and text.startswith("查詢日期"):
         try:
             parts = text.split()
-            start_date = parts[1]
-            end_date = parts[2]
-            conn = sqlite3.connect("records.db")
-            c = conn.cursor()
-            c.execute("SELECT id, date, category, note, amount FROM records WHERE date BETWEEN ? AND ? ORDER BY date ASC", (start_date, end_date))
-            rows = c.fetchall()
-            conn.close()
+            start_date, end_date = parts[1], parts[2]
+            res = supabase.table("records").select("id, date, category, note, amount").eq("user_id", user_id).gte("date", start_date).lte("date", end_date).order("date").execute()
+            rows = res.data
             if not rows:
                 reply = f"📭 {start_date} 到 {end_date} 之間沒有記錄喔！"
             else:
                 reply = f"📅 {start_date} ～ {end_date} 的紀錄：\n"
                 for row in rows:
-                    reply += f"ID:{row[0]}｜{row[1]}｜{row[3]}｜{row[4]}元｜{row[2]}\n"
+                    reply += f"ID:{row['id']}｜{row['date']}｜{row['note']}｜{row['amount']}元｜{row['category']}\n"
         except:
             reply = "⚠️ 格式錯誤，請輸入：查詢日期 [起日] [迄日]，例如：查詢日期 2025-04-01 2025-04-20"
 
     elif detected_func == "圖表":
-        conn = sqlite3.connect("records.db")
-        c = conn.cursor()
-        c.execute("SELECT category, SUM(amount) FROM records WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now') GROUP BY category")
-        data = c.fetchall()
-        conn.close()
-        if not data:
+        now_month = datetime.now().strftime("%Y-%m")
+        res = supabase.table("records").select("category, amount").eq("user_id", user_id).like("date", f"{now_month}%").execute()
+        rows = res.data
+        if not rows:
             reply = "📭 本月還沒有任何記錄喔～"
         else:
-            labels = [row[0] for row in data]
-            amounts = [row[1] for row in data]
+            summary = {}
+            for row in rows:
+                summary[row['category']] = summary.get(row['category'], 0) + row['amount']
+            labels = list(summary.keys())
+            amounts = list(summary.values())
             plt.figure(figsize=(6, 6))
             def make_autopct(values):
-              def my_autopct(pct):
-                  total = sum(values)
-                  val = int(round(pct * total / 100.0))
-                  return f'{pct:.1f}%\n({val}元)'
-              return my_autopct
-          
+                def my_autopct(pct):
+                    total = sum(values)
+                    val = int(round(pct * total / 100.0))
+                    return f'{pct:.1f}%\n({val}元)'
+                return my_autopct
             plt.pie(amounts, labels=labels, autopct=make_autopct(amounts))
-          
             plt.title("本月支出分類比例")
-        
             buf = io.BytesIO()
             plt.savefig(buf, format='png')
             plt.close()
-            buf.seek(0)  # ✅ 回到起始位置
-          
+            buf.seek(0)
             if not os.path.exists("static"):
                 os.makedirs("static")
-            # ✅ 正確縮排並寫入圖片
             with open("static/chart.png", "wb") as f:
                 f.write(buf.read())
-        
             image_url = "https://linebot-uj1t.onrender.com/static/chart.png"
             buf.close()
-        
             line_bot_api.reply_message(
                 event.reply_token,
                 ImageSendMessage(
@@ -257,47 +219,37 @@ def handle_message(event):
             )
             return
 
-
     elif detected_func == "設定預算":
         try:
             budget = int(text.split()[1])
-            conn = sqlite3.connect("records.db")
-            c = conn.cursor()
-            c.execute("DELETE FROM budget")
-            c.execute("INSERT INTO budget (id, amount) VALUES (1, ?)", (budget,))
-            conn.commit()
-            conn.close()
+            supabase.table("budget").upsert({"user_id": user_id, "amount": budget}).execute()
             reply = f"💸 每月預算已設定為 {budget} 元"
         except:
             reply = "⚠️ 請用正確格式：設定預算 [金額]，例如：設定預算 5000"
 
     elif detected_func == "本月剩餘":
-        conn = sqlite3.connect("records.db")
-        c = conn.cursor()
-        c.execute("SELECT amount FROM budget WHERE id = 1")
-        row = c.fetchone()
-        if row:
-            budget = row[0]
-            c.execute("SELECT SUM(amount) FROM records WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now')")
-            spent = c.fetchone()[0] or 0
+        budget_res = supabase.table("budget").select("amount").eq("user_id", user_id).execute()
+        if not budget_res.data:
+            reply = "⚠️ 尚未設定預算，請先輸入：設定預算 [金額]"
+        else:
+            budget = budget_res.data[0]['amount']
+            spent_res = supabase.table("records").select("amount").eq("user_id", user_id).like("date", f"{datetime.now().strftime('%Y-%m')}%").execute()
+            spent = sum([r['amount'] for r in spent_res.data])
             remaining = budget - spent
             reply = f"📅 本月預算：{budget} 元\n🧾 已花費：{spent} 元\n💰 剩餘：{remaining} 元"
-        else:
-            reply = "⚠️ 尚未設定預算，請先輸入：設定預算 [金額]"
-        conn.close()
 
     else:
         note, amount = extract_note_and_amount(text)
         if note and amount:
             date = datetime.now().strftime("%Y-%m-%d")
             category = classify(text)
-            user_id = event.source.user_id
-            conn = sqlite3.connect("records.db")
-            c = conn.cursor()
-            c.execute("INSERT INTO records (date, category, note, amount) VALUES (?, ?, ?, ?)",
-                      (date, category, note, amount))
-            conn.commit()
-            conn.close()
+            supabase.table("records").insert({
+                "date": date,
+                "category": category,
+                "note": note,
+                "amount": amount,
+                "user_id": user_id
+            }).execute()
             reply = f"✅ 已記錄：{note}｜{amount}元｜分類：{category}"
         else:
             reply = "❌ 抱歉，我沒看懂金額或類別，你可以這樣說：\n『吃壽司180』或『剛搭捷運20元』"
@@ -307,8 +259,8 @@ def handle_message(event):
         TextSendMessage(text=reply)
     )
 
+
 if __name__ == "__main__":
-    init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
 
