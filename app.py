@@ -302,7 +302,7 @@ def handle_voice(update: Update, context: CallbackContext):
     except Exception as e:
         update.message.reply_text(f"⚠️ 發生錯誤：{e}")
 
-@app.route("/reminder", methods=["POST"])
+@app.route("/reminder", methods=["GET", "POST"])
 def reminder():
     user_id = "a22556"  # 換成你的 LINE ID
     now_month = datetime.now().strftime("%Y-%m")
