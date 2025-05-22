@@ -12,7 +12,6 @@ import io
 import os
 import base64
 import matplotlib
-matplotlib.rcParams['font.family'] = 'Noto Sans CJK TC'
 
 SUPABASE_URL = "https://kounvedczvpdiajozfkq.supabase.co"  # ✅ 你的專案 URL
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvdW52ZWRjenZwZGlham96ZmtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4MDQ1NzMsImV4cCI6MjA2MzM4MDU3M30.yk7NkHy1xc5JNKLIHMLCheLKBf_-AwAtQpN4MZyyUDk"                               # ✅ 請填入你自己的 key
@@ -191,6 +190,10 @@ def handle_message(event):
                 summary[row['category']] = summary.get(row['category'], 0) + row['amount']
             labels = list(summary.keys())
             amounts = list(summary.values())
+            from matplotlib import font_manager
+            font_path = "fonts/NotoSansTC-VariableFont_wght.ttf"
+            font_prop = font_manager.FontProperties(fname=font_path)
+            plt.rcParams['font.family'] = font_prop.get_name()
             plt.figure(figsize=(6, 6))
             def make_autopct(values):
                 def my_autopct(pct):
@@ -198,8 +201,8 @@ def handle_message(event):
                     val = int(round(pct * total / 100.0))
                     return f'{pct:.1f}%\n({val}元)'
                 return my_autopct
-            plt.pie(amounts, labels=labels, autopct=make_autopct(amounts))
-            plt.title("本月支出分類比例")
+            plt.pie(amounts, labels=labels, autopct=make_autopct(amounts), textprops={'fontproperties': font_prop})
+            plt.title("本月支出分類比例", fontproperties=font_prop)
             buf = io.BytesIO()
             plt.savefig(buf, format='png')
             plt.close()
