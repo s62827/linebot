@@ -304,28 +304,12 @@ def handle_voice(update: Update, context: CallbackContext):
 
 @app.route("/reminder", methods=["GET", "POST"])
 def reminder():
-    user_id = "a22556"  # 換成你的 LINE ID
-    now_month = datetime.now().strftime("%Y-%m")
-
-    # 查預算
-    budget_res = supabase.table("budget").select("amount").eq("user_id", user_id).execute()
-    if not budget_res.data:
-        return "No budget set"
-
-    budget = budget_res.data[0]['amount']
-
-    # 查這個月已花
-    spent_res = supabase.table("records").select("amount").eq("user_id", user_id).like("date", f"{now_month}%").execute()
-    spent = sum([r['amount'] for r in spent_res.data])
-    remaining = budget - spent
-
-    # 判斷是否快爆
-    if remaining < 1000:
-        msg = f"⚠️ 預算快沒囉！只剩 {remaining} 元！記得控管花費 🧮"
-        line_bot_api.push_message(user_id, TextSendMessage(text=msg))
-
+    user_id = "你的LINE用戶ID"  # 換成你自己的
+    line_bot_api.push_message(
+        user_id,
+        TextSendMessage(text="📣 今天記帳了嗎？記得花費要紀錄喔！")
+    )
     return "OK"
-
 
 
     # 清理暫存檔案
