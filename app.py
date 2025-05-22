@@ -191,7 +191,7 @@ def handle_message(event):
             labels = list(summary.keys())
             amounts = list(summary.values())
             from matplotlib import font_manager
-            font_path = "fonts/NotoSansTC-VariableFont_wght.ttf"
+            font_path = "NotoSansTC-VariableFont_wght.ttf"
             font_prop = font_manager.FontProperties(fname=font_path)
             plt.rcParams['font.family'] = font_prop.get_name()
             plt.figure(figsize=(6, 6))
