@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 import io
 import os
 import base64
+import matplotlib
+matplotlib.rcParams['font.family'] = 'Noto Sans CJK TC'
+
 
 
 app = Flask(__name__)
@@ -220,11 +223,20 @@ def handle_message(event):
             labels = [row[0] for row in data]
             amounts = [row[1] for row in data]
             plt.figure(figsize=(6, 6))
-            plt.pie(amounts, labels=labels, autopct='%1.1f%%')
+            def make_autopct(values):
+            def my_autopct(pct):
+                total = sum(values)
+                val = int(round(pct * total / 100.0))
+                return f'{pct:.1f}%\n({val}元)'
+            return my_autopct
+          
+            plt.pie(amounts, labels=labels, autopct=make_autopct(amounts))
+          
             plt.title("本月支出分類比例")
         
             buf = io.BytesIO()
             plt.savefig(buf, format='png')
+            plt.close()
             buf.seek(0)  # ✅ 回到起始位置
           
             if not os.path.exists("static"):
