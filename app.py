@@ -224,11 +224,11 @@ def handle_message(event):
             amounts = [row[1] for row in data]
             plt.figure(figsize=(6, 6))
             def make_autopct(values):
-            def my_autopct(pct):
-                total = sum(values)
-                val = int(round(pct * total / 100.0))
-                return f'{pct:.1f}%\n({val}元)'
-            return my_autopct
+              def my_autopct(pct):
+                  total = sum(values)
+                  val = int(round(pct * total / 100.0))
+                  return f'{pct:.1f}%\n({val}元)'
+              return my_autopct
           
             plt.pie(amounts, labels=labels, autopct=make_autopct(amounts))
           
