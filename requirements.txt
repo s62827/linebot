@@ -4,3 +4,4 @@ matplotlib
 python-dotenv
 sudo apt update
 sudo apt install ffmpeg
+supabase
