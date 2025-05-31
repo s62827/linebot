@@ -1,15 +1,10 @@
 services:
   - type: web
-    name: line-expense-bot
+    name: flask-expense-tracker
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: RENDER_APP_URL
-        value: https://your-app-name.onrender.com
-      - key: LINE_CHANNEL_ACCESS_TOKEN
-        value: your_line_channel_access_token
-      - key: LINE_CHANNEL_SECRET
-        value: your_line_channel_secret
-startCommand: gunicorn app:app
+        value: https://你的-render-網址.onrender.com
