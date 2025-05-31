@@ -307,7 +307,7 @@ if __name__ == "__main__":
     #line_bot_api.push_message(
         #user_id,
         #TextSendMessage(text="📣 今天記帳了嗎？記得花費要紀錄喔！")
-    )
+    #)
     return "OK"
 
 
