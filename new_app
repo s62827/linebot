@@ -4,6 +4,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_apscheduler import APScheduler
 from datetime import datetime, timedelta
 from collections import Counter
+from linebot import LineBotApi, WebhookHandler
+from linebot.exceptions import InvalidSignatureError
+from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import re
 import os
 import requests
@@ -18,7 +21,13 @@ scheduler = APScheduler()
 scheduler.init_app(app)
 scheduler.start()
 
+# 讀取環境變數
 RENDER_APP_URL = os.getenv('RENDER_APP_URL', 'http://localhost:5000')
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
+LINE_CHANNEL_SECRET = os.getenv('LINE_CHANNEL_SECRET')
+
+line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
+handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
 ### 資料庫模型 ###
 class User(db.Model):
@@ -99,22 +108,14 @@ def get_summary(username):
     if not user:
         return jsonify({'message': '使用者不存在'}), 404
     expenses = Expense.query.filter_by(user_id=user.id).all()
-
-    # 分類統計
     category_totals = {}
     for e in expenses:
         category = classify_expense(e.description)
         category_totals[category] = category_totals.get(category, 0) + e.amount
-
-    # 詞頻分析
     all_text = ' '.join([e.description for e in expenses])
     words = re.findall(r'\w+', all_text)
     word_count = Counter(words).most_common(10)
-
-    return jsonify({
-        'category_totals': category_totals,
-        'word_frequency': word_count
-    })
+    return jsonify({'category_totals': category_totals, 'word_frequency': word_count})
 
 ### 每週自動通知 ###
 @scheduler.task('cron', id='weekly_summary', day_of_week='sun', hour=20)
@@ -126,29 +127,41 @@ def weekly_summary():
         total = sum(e.amount for e in expenses)
         print(f"[通知] 使用者 {user.username} 本週總支出：{total:.2f} 元")
 
-### Webhook 接收端 ###
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    data = request.get_json()
-    print("接收到 webhook 資料：", data)
-    return jsonify({'message': 'Webhook received!'}), 200
-
-### 手動觸發 Webhook ###
-@app.route('/trigger_webhook', methods=['POST'])
-def trigger_webhook():
-    data = {'message': 'Hello from your Flask app!'}
-    url = f"{RENDER_APP_URL}/webhook"
+### LINE Webhook 入口 ###
+@app.route("/callback", methods=['POST'])
+def callback():
+    signature = request.headers['X-Line-Signature']
+    body = request.get_data(as_text=True)
     try:
-        response = requests.post(url, json=data)
-        return jsonify({'status': 'success', 'response': response.json()})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        return 'Invalid signature', 400
+    return 'OK'
 
-### 根路由 ###
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    text = event.message.text.strip()
+    match = re.match(r"^(.+)\s+(\d+(\.\d{1,2})?)$", text)
+    if match:
+        description, amount = match.group(1), float(match.group(2))
+        user = User.query.filter_by(username=event.source.user_id).first()
+        if not user:
+            user = User(username=event.source.user_id,
+                        password_hash=generate_password_hash('default'))
+            db.session.add(user)
+            db.session.commit()
+        expense = Expense(user_id=user.id, description=description, amount=amount)
+        db.session.add(expense)
+        db.session.commit()
+        reply = f"已記帳：{description} - {amount} 元"
+    else:
+        reply = "請用格式：項目 金額，例如：午餐 120"
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+
+### 根目錄 ###
 @app.route('/')
 def home():
-    return 'LINE Bot is running!'
-
+    return 'LINE 記帳機器人運行中！'
 
 ### 初始化 ###
 if __name__ == '__main__':
