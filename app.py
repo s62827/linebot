@@ -112,7 +112,7 @@ def webhook():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-  try:
+ try:
     text = event.message.text.strip()
     user_id = event.source.user_id
     detected_func = detect_function(text)
