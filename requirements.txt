@@ -3,3 +3,5 @@ line-bot-sdk
 matplotlib
 python-dotenv
 supabase
+pydub
+speechrecognition
