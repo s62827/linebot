@@ -4,4 +4,4 @@ flask_apscheduler
 werkzeug
 requests
 gunicorn
-line-bot-sdk
+line-bot-sdk==2.4.0  # 避免新版 v3 的語法問題
