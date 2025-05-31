@@ -1,6 +1,10 @@
 services:
   - type: web
-    name: expense-bot
+    name: flask-expense-tracker
     env: python
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    startCommand: gunicorn app:app
+    envVars:
+      - key: RENDER_APP_URL
+        value: https://flask-expense-tracker.onrender.com
