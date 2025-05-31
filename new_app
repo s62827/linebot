@@ -151,4 +151,7 @@ def trigger_webhook():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+@app.route('/')
+def home():
+    return 'LINE Bot is running!'
 
