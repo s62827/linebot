@@ -4,3 +4,4 @@ flask_apscheduler
 werkzeug
 requests
 gunicorn
+line-bot-sdk
