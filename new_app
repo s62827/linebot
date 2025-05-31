@@ -33,7 +33,7 @@ category_keywords = {
     "其他": []
 }
 
-# 功能關鍵字
+# 功能關鍵字偵測
 def detect_function(text):
     function_keywords = {
         "查詢": ["查詢", "紀錄", "看看帳"],
@@ -66,25 +66,23 @@ def extract_note_and_amount(text):
         return note, amount
     return None, None
 
-# webhook 路由
+# Webhook 路由
 @app.route("/webhook", methods=["POST"])
 def webhook():
     signature = request.headers["X-Line-Signature"]
     body = request.get_data(as_text=True)
-
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
         abort(400)
     return "OK"
 
-# 訊息處理
+# 處理來自 LINE 的訊息
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     text = event.message.text.strip()
     user_id = event.source.user_id
     detected_func = detect_function(text)
-
     reply = ""
 
     # 查詢最近紀錄
@@ -154,12 +152,14 @@ def handle_message(event):
             buf = io.BytesIO()
             plt.savefig(buf, format='png')
             buf.seek(0)
+
             if not os.path.exists("static"):
                 os.makedirs("static")
             with open("static/chart.png", "wb") as f:
                 f.write(buf.read())
             buf.close()
-            image_url = "https://你的網址/static/chart.png"
+
+            image_url = "https://你的網址/static/chart.png"  # ←請替換成你的網址
             line_bot_api.reply_message(
                 event.reply_token,
                 ImageSendMessage(original_content_url=image_url, preview_image_url=image_url)
