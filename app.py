@@ -112,7 +112,6 @@ def webhook():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
- try:
     text = event.message.text.strip()
     user_id = event.source.user_id
     detected_func = detect_function(text)
@@ -262,61 +261,52 @@ def handle_message(event):
         event.reply_token,
         TextSendMessage(text=reply)
     )
- except Exception as e:
-        # 這裡是你要加的 log
-        print("❌ LINE webhook 處理失敗：", str(e))
-        
-        # 回覆錯誤訊息給使用者（避免 webhook 無回應）
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text="⚠️ 發生錯誤，請稍後再試")
-        )
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
 
-import speech_recognition as sr
-from pydub import AudioSegment
-import os
+#import speech_recognition as sr
+#from pydub import AudioSegment
+#import os
 
-def handle_voice(update: Update, context: CallbackContext):
-    file = update.message.voice.get_file()
-    file_path = "voice.ogg"
-    wav_path = "voice.wav"
+#def handle_voice(update: Update, context: CallbackContext):
+    #file = update.message.voice.get_file()
+    #file_path = "voice.ogg"
+    #wav_path = "voice.wav"
 
     # 下載語音檔
-    file.download(file_path)
+    #file.download(file_path)
 
     # 轉檔 ogg → wav
-    audio = AudioSegment.from_ogg(file_path)
-    audio.export(wav_path, format="wav")
+    #audio = AudioSegment.from_ogg(file_path)
+    #audio.export(wav_path, format="wav")
 
     # 使用 SpeechRecognition 辨識
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(wav_path) as source:
-        audio_data = recognizer.record(source)
+    #recognizer = sr.Recognizer()
+    #with sr.AudioFile(wav_path) as source:
+        #audio_data = recognizer.record(source)
 
-    try:
-        text = recognizer.recognize_google(audio_data, language="zh-TW")
-        update.message.reply_text(f"🗣️ 你說的是：「{text}」")
+    #try:
+        #text = recognizer.recognize_google(audio_data, language="zh-TW")
+        #update.message.reply_text(f"🗣️ 你說的是：「{text}」")
 
         # 把語音轉文字後，交給原本的 handle_message 處理
-        message = type("Message", (), {"text": text, "chat": update.message.chat, "reply_text": update.message.reply_text})
-        update_voice = type("Update", (), {"message": message})
-        handle_message(update_voice, context)
+        #message = type("Message", (), {"text": text, "chat": update.message.chat, "reply_text": update.message.reply_text})
+        #update_voice = type("Update", (), {"message": message})
+        #handle_message(update_voice, context)
 
-    except sr.UnknownValueError:
-        update.message.reply_text("⚠️ 無法辨識語音，請再試一次。")
-    except Exception as e:
-        update.message.reply_text(f"⚠️ 發生錯誤：{e}")
+    #except sr.UnknownValueError:
+        #update.message.reply_text("⚠️ 無法辨識語音，請再試一次。")
+    #except Exception as e:
+        #update.message.reply_text(f"⚠️ 發生錯誤：{e}")
 
-@app.route("/reminder", methods=["GET", "POST"])
-def reminder():
-    user_id = "a22556"  # 換成你自己的
-    line_bot_api.push_message(
-        user_id,
-        TextSendMessage(text="📣 今天記帳了嗎？記得花費要紀錄喔！")
+#@app.route("/reminder", methods=["GET", "POST"])
+#def reminder():
+    #user_id = "a22556"  # 換成你自己的
+    #line_bot_api.push_message(
+        #user_id,
+        #TextSendMessage(text="📣 今天記帳了嗎？記得花費要紀錄喔！")
     )
     return "OK"
 
