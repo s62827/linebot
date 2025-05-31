@@ -112,6 +112,7 @@ def webhook():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
+  try:
     text = event.message.text.strip()
     user_id = event.source.user_id
     detected_func = detect_function(text)
@@ -261,7 +262,15 @@ def handle_message(event):
         event.reply_token,
         TextSendMessage(text=reply)
     )
-
+ except Exception as e:
+        # 這裡是你要加的 log
+        print("❌ LINE webhook 處理失敗：", str(e))
+        
+        # 回覆錯誤訊息給使用者（避免 webhook 無回應）
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="⚠️ 發生錯誤，請稍後再試")
+        )
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
