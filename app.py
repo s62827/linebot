@@ -308,7 +308,7 @@ if __name__ == "__main__":
         #user_id,
         #TextSendMessage(text="📣 今天記帳了嗎？記得花費要紀錄喔！")
     #)
-    return "OK"
+    #return "OK"
 
 
     # 清理暫存檔案
