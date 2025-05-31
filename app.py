@@ -5,6 +5,12 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSend
 
 from supabase import create_client, Client
 
+from linebot.models import AudioMessage
+import speech_recognition as sr
+from pydub import AudioSegment
+import requests
+import subprocess
+
 from datetime import datetime
 import re
 import matplotlib.pyplot as plt
@@ -261,6 +267,42 @@ def handle_message(event):
         event.reply_token,
         TextSendMessage(text=reply)
     )
+  
+@handler.add(MessageEvent, message=AudioMessage)
+def handle_audio(event):
+    user_id = event.source.user_id
+
+    # 下載語音檔
+    message_content = line_bot_api.get_message_content(event.message.id)
+    ogg_path = f"voice_{user_id}.m4a"
+    wav_path = f"voice_{user_id}.wav"
+
+    with open(ogg_path, 'wb') as f:
+        for chunk in message_content.iter_content():
+            f.write(chunk)
+
+    # 使用 ffmpeg 轉成 wav
+    subprocess.run(["ffmpeg", "-y", "-i", ogg_path, wav_path])
+
+    # 語音辨識
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(wav_path) as source:
+        audio_data = recognizer.record(source)
+
+    try:
+        text = recognizer.recognize_google(audio_data, language="zh-TW")
+        print(f"🗣️ 認得出來的語音內容：{text}")
+
+        # 把辨識出來的內容交給文字處理邏輯
+        fake_event = type("FakeEvent", (), {"message": type("msg", (), {"text": text}), "source": event.source, "reply_token": event.reply_token})
+        handle_message(fake_event)
+
+    except sr.UnknownValueError:
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 語音聽不清楚，請再試一次"))
+    except Exception as e:
+        print("❌ 語音辨識錯誤：", str(e))
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="⚠️ 發生錯誤，請稍後再試"))
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
